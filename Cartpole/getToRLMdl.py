@@ -15,4 +15,5 @@ while not done:
    obs, rew, done, info = step_result[:4]
    total_reward += rew
    print(f"{obs} -> {rew}")
+   print(f"done: {done}")
 print(f"Total reward: {total_reward}")
