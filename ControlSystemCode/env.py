@@ -1,26 +1,47 @@
+import os
 import gym
-from gym import spaces
 import traci
 import numpy as np
+import sumolib
+import sys
+
+from TrafficLightEnv import TrafficLight
+
+if 'SUMO_HOME' in os.environ:
+    tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
+    sys.path.append(tools)
+else:
+    sys.exit("Please declare the environment variable 'SUMO_HOME'")
 
 class SumoEnv(gym.Env):
-    def __init__(self, sumo_cfg_file):
+    def __init__(
+        self,
+        sumo_cfg_file:str,
+        simulation_time:int,
+        ):
         super(SumoEnv, self).__init__()
         self.sumo_cfg_file = sumo_cfg_file
         self.sumo_cmd = ["sumo", "-c", self.sumo_cfg_file]
-        self.action_space = spaces.Discrete(8)   #Action Space, need to be changed, decision made by TrafficLight
-        # State Space, Need to be changed, need to contain both Light phase and vehicle things 
-        self.observation_space = spaces.Box(low=0, high=10000, shape=(5,))  
-        self.step_count = 0
+        self.time = 0
+        self.end_time = simulation_time
+        traci.start(["sumo-gui", "-b","0", "-e",str(simulation_time), "-c", sumo_cfg_file], numRetries=10,verbose = True)
+        
+        conn = traci
+        
+        self.ts_id = traci.trafficlight.getIDList()[0]
+        self.traffic_light = TrafficLight(ts_id=self.ts_id,traci=conn)
+        
+        self.close()
+
 
     def reset(self):
         # reset SUMO
         traci.start(self.sumo_cmd)
-        self.step_count = 0
+        self.time = 0
         # get initial observation
-        return self._get_observation()
+        return self.getObservation()
 
-    #TO DO:
+
     def step(self, action):
         next_state = None
         reward = None
@@ -29,41 +50,56 @@ class SumoEnv(gym.Env):
         # start calculate reward
         start = False
         
-        #To do:
-        do_action = self.traffic_signal.change_phase(action)  #Add traffic light control
+        do_action = self.traffic_light.doAction(action)  #Add traffic light control
         if do_action is None:
             return next_state, reward, done, info
 
         traci.simulationStep()
-        
-        #self things need to be modified
-        if do_action == -1 and self.change_action_time is None:
-            self.change_action_time = traci.simulation.getTime()
-        
-        #To do:
-        if self.change_action_time is not None and self.sumo.simulation.getTime() >= self.change_action_time:
-            self.change_action_time = None
-            self.train_state = self._compute_state()
-            start = True
-
-        #To do:
         # compute_state must be front of compute_reward
-        next_state = self._compute_next_state()
-        reward = self._compute_reward(start, do_action)
-        done = self._compute_done()
+        next_state = self.computeNextState()
+        reward = self.computeReward(start, do_action)
+        done = self.computeDone()
         info = {'do_action': do_action}
-        self.step_count += 1
+        self.time += 1
         return next_state, reward, done, info
 
-    #To do:
-    def _take_action(self, action):
+
+    def takeAction(self, action):
         # Take action to control Traffic Light
-        pass
-    #To do:
-    def _get_observation(self):
+        return self.traffic_light.doAction(action)
+    
+    
+    def computeReward(self, do_action):
+        ts_reward = self.traffic_light.computeReward(do_action)
+        return ts_reward
+    
+
+    def getObservation(self):
         # Get state status
-        pass
+        return self.traffic_light.observation_space
+    
+    
+    def computeDone(self):
+        current_time = traci.simulation.getTime()
+        if current_time > self.end_time:
+            done = True
+        else:
+            done = False
+        return done
+    
+    
+    def computeState(self):
+        return self.traffic_light.computeState()
+    
+    
+    def computeNextState(self):
+        return self.traffic_light.computeNextState
+
 
     def close(self):
         # Close SUMO
         traci.close()
+
+
+    def action_space(self):
+        return self.traffic_light.action_space

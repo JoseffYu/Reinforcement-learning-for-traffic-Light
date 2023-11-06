@@ -58,6 +58,7 @@ class Critic(torch.nn.Module):
         optimizerC = torch.optim.Adam(critic.parameters())
         for iter in range(n_iters):
             state = env.reset()[0]
+            print(env.reset())
             log_probs = []
             values = []
             rewards = []
@@ -70,8 +71,9 @@ class Critic(torch.nn.Module):
                 state = torch.FloatTensor(state).to(device)
                 dist, value = actor.forward(state), critic.forward(state)
                 action = dist.sample()
-                print(env.step(action.cpu().numpy()))
+                #print(env.step(action.cpu().numpy()))
                 next_state, reward, done, _ = env.step(action.cpu().numpy())[:4]
+                #print(next_state)
 
                 log_prob = dist.log_prob(action).unsqueeze(0)
                 entropy += dist.entropy().mean()
