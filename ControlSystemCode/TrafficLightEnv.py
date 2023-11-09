@@ -16,7 +16,7 @@ class TrafficLight:
         self.green_phase = None
         self.yellow_phase = None
         self.end_time = 0
-        self.all_phases = self.conn.trafficlight.getAllProgramLogics(tl_id)[0].phases
+        self.all_phases = self.conn.trafficlight.getAllProgramLogics(tl_id[0])[0].phases
         self.all_green_phases = [phase for phase in self.all_phases if 'g' in phase.state]
         self.lanes_id = list(dict.fromkeys(self.conn.trafficlight.getControlledLanes(self.tl_id)))
         self.lanes_length = {lane_id: self.conn.lane.getLength(lane_id) for lane_id in self.lanes_id}
@@ -30,11 +30,47 @@ class TrafficLight:
         
     #TO DO
     def doAction(self, action):
-        return 
+        
+        if action > len(self.all_green_phases):
+            raise IndexError
+        
+        new_green_phase = self.all_green_phases[action]
+        self.conn.trafficlight.setRedYellowGreenState(self.tl_id, new_green_phase)
+        
+        return action
+
     
     #TO DO
     def computeReward(self, action):
+        update_reward = False
+        current_time = self.conn.simulation.getTime()
+        if current_time >= self.rs_update_time:
+            # set rs_update_time unreachable
+            self.rs_update_time = self.simulation_time + self.delta_rs_update_time
+            update_reward = True
+        
+        return self.choose_min_wait_time(action)
+    
+    
+    def choose_min_wait_time(self,action):
+        self.dict_lane_veh = {}
+         
+         
+        for lane_id in self.lanes_id:
+            self.dict_lane_veh[lane_id] = self.sumo.lane.getLastStepHaltingNumber(lane_id)
+            # merge wait_num by actions
+            dict_action_wait_num = [self.dict_lane_veh['E0_1'] + self.dict_lane_veh['E2_1'],
+                                    self.dict_lane_veh['-E1_1'] + self.dict_lane_veh['E3_1'],
+                                    self.dict_lane_veh['E0_2'] + self.dict_lane_veh['E2_1'],
+                                    self.dict_lane_veh['-E1_2'] + self.dict_lane_veh['E3_2']]
+            best_action = np.argmax(dict_action_wait_num)
+        if best_action == action:
+            self.reward += 1
+        else:
+            self.reward -= 1
+
         return self.reward
+
 
     def computeNextState(self):
         current_time = self.conn.simulation.getTime()
@@ -45,10 +81,12 @@ class TrafficLight:
         else:
             return None
 
+
     def computeState(self):
         density = self.get_lanes_density()
         state = np.array(density, dtype=np.float32)
         return state
+
 
     def getLanesDensity(self):
         vehicle_size_min_gap = 7.5

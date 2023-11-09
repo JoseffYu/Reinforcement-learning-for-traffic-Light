@@ -1,17 +1,10 @@
-import os
+
 import gym
 import traci
-import numpy as np
-import sumolib
-import sys
+import numpy as nps
 
 from TrafficLightEnv import TrafficLight
 
-if 'SUMO_HOME' in os.environ:
-    tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
-    sys.path.append(tools)
-else:
-    sys.exit("Please declare the environment variable 'SUMO_HOME'")
 
 class SumoEnv(gym.Env):
     def __init__(
@@ -73,11 +66,6 @@ class SumoEnv(gym.Env):
         ts_reward = self.traffic_light.computeReward(do_action)
         return ts_reward
     
-
-    def getObservation(self):
-        # Get state status
-        return self.traffic_light.observation_space
-    
     
     def computeDone(self):
         current_time = traci.simulation.getTime()
@@ -100,6 +88,11 @@ class SumoEnv(gym.Env):
         # Close SUMO
         traci.close()
 
+
+    def observation_space(self):
+        # Get state status
+        return self.traffic_light.observation_space
+    
 
     def action_space(self):
         return self.traffic_light.action_space
