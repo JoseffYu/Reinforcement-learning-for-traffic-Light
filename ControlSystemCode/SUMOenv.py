@@ -2,7 +2,6 @@
 import gym
 import traci
 import numpy as nps
-
 from TrafficLightEnv import TrafficLight
 
 
@@ -21,8 +20,8 @@ class SumoEnv(gym.Env):
         
         conn = traci
         
-        self.ts_id = traci.trafficlight.getIDList()[0]
-        self.traffic_light = TrafficLight(ts_id=self.ts_id,traci=conn)
+        self.tl_id = traci.trafficlight.getIDList()
+        self.traffic_light = TrafficLight(self.tl_id,traci=conn)
         
         self.close()
 

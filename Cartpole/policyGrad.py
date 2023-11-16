@@ -3,12 +3,11 @@ import matplotlib as plt
 import matplotlib.pyplot as plt2
 import torch
 import gym
-import sys
 
 # build env
 env = gym.make("CartPole-v1")
 
-num_input = int(sys.argv[1])
+num_input = 4
 num_actions = 2
 eps = 0.0001
 alpha = 1e-4

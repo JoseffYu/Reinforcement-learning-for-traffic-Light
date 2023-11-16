@@ -6,34 +6,48 @@ from gym import spaces
 class TrafficLight:
     def __init__(
         self,
-        tl_id: str,
+        tls_id: str,
         traci
     ):
         self.conn = traci
-        self.tl_id = tl_id
+        self.tls_id = tls_id
         # reward_state_update_time
         self.rs_update_time = 0
         self.green_phase = None
         self.yellow_phase = None
         self.end_time = 0
-        self.all_phases = self.conn.trafficlight.getAllProgramLogics(tl_id[0])[0].phases
-        self.all_green_phases = [phase for phase in self.all_phases if 'g' in phase.state]
-        self.lanes_id = list(dict.fromkeys(self.conn.trafficlight.getControlledLanes(self.tl_id)))
-        self.lanes_length = {lane_id: self.conn.lane.getLength(lane_id) for lane_id in self.lanes_id}
+        self.all_phases = []
+        self.lanes_id = []
+        self.reward = 0
+        self.continue_reward = False
+        self.dict_lane_veh = None
+
+        for tl_id in self.tls_id:
+            num_tl = self.tls_id.index(tl_id)
+            self.all_phases.append(self.conn.trafficlight.getAllProgramLogics(tl_id)[0].phases)
+            self.lanes_id.append(list(dict.fromkeys(self.conn.trafficlight.getControlledLanes(tl_id))))
+            self.lanes_length = {lane_id: self.conn.lane.getLength(lane_id) for lane_id in self.lanes_id[num_tl]}
+
+        self.all_green_phases = []
+        for index in range(len(self.all_phases)):
+            for phase in self.all_phases[index] :
+                if 'g' in phase.state:
+                    self.all_green_phases.append(phase)
+
         self.observation_space = spaces.Box(
             low=np.zeros(len(self.lanes_id), dtype=np.float32),
             high=np.ones(len(self.lanes_id), dtype=np.float32))
         self.action_space = spaces.Discrete(len(self.all_green_phases))
-        self.reward = 0
-        self.continue_reward = False
-        self.dict_lane_veh = None
         
     #TO DO
-    def doAction(self, action):
+    def doAction(self, tl_id, action):
+        
+        num_tl = self.tls_id.index(tl_id)
         
         if action > len(self.all_green_phases):
             raise IndexError
         
+        #to do
         new_green_phase = self.all_green_phases[action]
         self.conn.trafficlight.setRedYellowGreenState(self.tl_id, new_green_phase)
         

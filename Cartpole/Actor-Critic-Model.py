@@ -71,9 +71,7 @@ class Critic(torch.nn.Module):
                 state = torch.FloatTensor(state).to(device)
                 dist, value = actor.forward(state), critic.forward(state)
                 action = dist.sample()
-                #print(env.step(action.cpu().numpy()))
                 next_state, reward, done, _ = env.step(action.cpu().numpy())[:4]
-                #print(next_state)
 
                 log_prob = dist.log_prob(action).unsqueeze(0)
                 entropy += dist.entropy().mean()
@@ -112,5 +110,5 @@ class Critic(torch.nn.Module):
 
 actor = Actor(state_size, action_size).to(device)
 critic = Critic(state_size, action_size).to(device)
-critic.run_episode(actor, n_iters=100)
+critic.run_episode(actor, n_iters=10)
 env.close()
