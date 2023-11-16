@@ -34,7 +34,7 @@ class SumoEnv(gym.Env):
         return self.getObservation()
 
 
-    def step(self, action):
+    def step(self, tl_id, action):
         next_state = None
         reward = None
         done = False
@@ -42,7 +42,7 @@ class SumoEnv(gym.Env):
         # start calculate reward
         start = False
         
-        do_action = self.traffic_light.doAction(action)  #Add traffic light control
+        do_action = self.traffic_light.doAction(tl_id, action)
         if do_action is None:
             return next_state, reward, done, info
 
@@ -54,6 +54,10 @@ class SumoEnv(gym.Env):
         info = {'do_action': do_action}
         self.time += 1
         return next_state, reward, done, info
+    
+    
+    def render(self, mode='human'):
+        pass
 
 
     def takeAction(self, action):

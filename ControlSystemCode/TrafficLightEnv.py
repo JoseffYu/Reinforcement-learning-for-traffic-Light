@@ -38,24 +38,21 @@ class TrafficLight:
             low=np.zeros(len(self.lanes_id), dtype=np.float32),
             high=np.ones(len(self.lanes_id), dtype=np.float32))
         self.action_space = spaces.Discrete(len(self.all_green_phases))
-        
-    #TO DO
+
+
     def doAction(self, tl_id, action):
-        
-        num_tl = self.tls_id.index(tl_id)
         
         if action > len(self.all_green_phases):
             raise IndexError
         
-        #to do
-        new_green_phase = self.all_green_phases[action]
-        self.conn.trafficlight.setRedYellowGreenState(self.tl_id, new_green_phase)
+        new_green_phase_state = self.all_green_phases[action].state
+        self.conn.trafficlight.setRedYellowGreenState(tl_id, new_green_phase_state)
         
         return action
 
-    
-    #TO DO
+
     def computeReward(self, action):
+        
         update_reward = False
         current_time = self.conn.simulation.getTime()
         if current_time >= self.rs_update_time:
@@ -67,8 +64,7 @@ class TrafficLight:
     
     
     def choose_min_wait_time(self,action):
-        self.dict_lane_veh = {}
-         
+        self.dict_lane_veh = {}        
          
         for lane_id in self.lanes_id:
             self.dict_lane_veh[lane_id] = self.sumo.lane.getLastStepHaltingNumber(lane_id)
@@ -101,7 +97,7 @@ class TrafficLight:
         state = np.array(density, dtype=np.float32)
         return state
 
-
+    #TO DO:
     def getLanesDensity(self):
         vehicle_size_min_gap = 7.5
         return [min(1, self.conn.lane.getLastStepVehicleNumber(lane_id) / (self.lanes_length[lane_id] / vehicle_size_min_gap))
