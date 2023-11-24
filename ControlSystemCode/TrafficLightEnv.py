@@ -7,6 +7,7 @@ class TrafficLight:
     def __init__(
         self,
         tls_id: str,
+        simulation_time: int,
         traci
     ):
         self.conn = traci
@@ -21,6 +22,7 @@ class TrafficLight:
         self.reward = 0
         self.continue_reward = False
         self.dict_lane_veh = None
+        self.simulation_time = simulation_time
 
         for tl_id in self.tls_id:
             num_tl = self.tls_id.index(tl_id)
@@ -34,71 +36,87 @@ class TrafficLight:
                 if 'g' in phase.state:
                     self.all_green_phases.append(phase)
 
-        self.observation_space = spaces.Box(
-            low=np.zeros(len(self.lanes_id), dtype=np.float32),
-            high=np.ones(len(self.lanes_id), dtype=np.float32))
+        self.observation_space = spaces.Box(low=-1, high=1, shape=(24,), dtype=np.float32)
         self.action_space = spaces.Discrete(len(self.all_green_phases))
+        
+        self.lanes_id = [lane for sub_list_lanes in self.lanes_id for lane in sub_list_lanes]
 
 
     def doAction(self, tl_id, action):
         
-        if action > len(self.all_green_phases):
-            raise IndexError
-        
         new_green_phase_state = self.all_green_phases[action].state
         self.conn.trafficlight.setRedYellowGreenState(tl_id, new_green_phase_state)
+        self.green_phase = action
         
-        return action
+        
 
 
     def computeReward(self, action):
+
+        update_reward = True
         
-        update_reward = False
-        current_time = self.conn.simulation.getTime()
-        if current_time >= self.rs_update_time:
-            # set rs_update_time unreachable
-            self.rs_update_time = self.simulation_time + self.delta_rs_update_time
-            update_reward = True
-        
-        return self.choose_min_wait_time(action)
+        return self.chooseMinWaitTime(action, update_reward)
     
     
-    def choose_min_wait_time(self,action):
+    def chooseMinWaitTime(self,action, update_reward):
         self.dict_lane_veh = {}        
          
         for lane_id in self.lanes_id:
-            self.dict_lane_veh[lane_id] = self.sumo.lane.getLastStepHaltingNumber(lane_id)
-            # merge wait_num by actions
-            dict_action_wait_num = [self.dict_lane_veh['E0_1'] + self.dict_lane_veh['E2_1'],
-                                    self.dict_lane_veh['-E1_1'] + self.dict_lane_veh['E3_1'],
-                                    self.dict_lane_veh['E0_2'] + self.dict_lane_veh['E2_1'],
-                                    self.dict_lane_veh['-E1_2'] + self.dict_lane_veh['E3_2']]
-            best_action = np.argmax(dict_action_wait_num)
+            self.dict_lane_veh[lane_id] = self.conn.lane.getLastStepHaltingNumber(lane_id)
+        # merge wait_num by actions
+        dict_action_wait_num = [self.dict_lane_veh['E0_1'] + self.dict_lane_veh['E2_1'],
+                                self.dict_lane_veh['-E1_1'] + self.dict_lane_veh['E3_1'],
+                                self.dict_lane_veh['E0_2'] + self.dict_lane_veh['E2_1'],
+                                self.dict_lane_veh['-E1_2'] + self.dict_lane_veh['E3_2']]
+        best_action = np.argmax(dict_action_wait_num)
         if best_action == action:
-            self.reward += 1
+            self.reward = 1
         else:
-            self.reward -= 1
-
-        return self.reward
+            self.reward = -1
+            
+        if update_reward == True:
+            return self.reward
+        else:
+            return None
 
 
     def computeNextState(self):
         current_time = self.conn.simulation.getTime()
         if current_time >= self.rs_update_time:
-            density = self.get_lanes_density()
-            next_state = np.array(density, dtype=np.float32)
+            observation = self.getObservation()
+            next_state = np.array(observation, dtype=np.float32)
             return next_state
         else:
             return None
 
 
     def computeState(self):
-        density = self.get_lanes_density()
-        state = np.array(density, dtype=np.float32)
+        observation = self.getObservation()
+        state = np.array(observation, dtype=np.float32)
         return state
 
-    #TO DO:
+
     def getLanesDensity(self):
         vehicle_size_min_gap = 7.5
         return [min(1, self.conn.lane.getLastStepVehicleNumber(lane_id) / (self.lanes_length[lane_id] / vehicle_size_min_gap))
                 for lane_id in self.lanes_id]
+
+
+    def getLanesQueue(self):
+        """Returns the queue [0,1] of the vehicles in the incoming lanes of the intersection.
+
+        Obs: The queue is computed as the number of vehicles halting divided by the number of vehicles that could fit in the lane.
+        """
+        lanes_queue = [
+            self.conn.lane.getLastStepHaltingNumber(lane) #total number of halting vehicles
+            / (self.lanes_length[lane] / max(self.conn.lane.getLastStepLength(lane),1)) # getLastStepLength Returns the mean vehicle length in m for the last time step on the given lane.
+            for lane in self.lanes_id
+        ]
+        return [min(1, queue) for queue in lanes_queue]
+
+
+    def getObservation(self):
+        density = self.getLanesDensity()
+        queue = self.getLanesQueue()
+        observation = np.array(density + queue, dtype=np.float32)
+        return observation

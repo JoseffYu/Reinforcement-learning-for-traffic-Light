@@ -13,7 +13,8 @@ lanes = traci.lane.getIDList()
 
 print(f"lanes:{lanes}")
 print(f"traffic light:{traffic_light_id}")
-while traci.simulation.getMinExpectedNumber() > 0:
+step = 0
+while step < 1000:
     # Get TrafficLight status
     traffic_light_id = traci.trafficlight.getIDList()
     #print(f"traffic_light_id:{traffic_light_id}")
@@ -32,5 +33,6 @@ while traci.simulation.getMinExpectedNumber() > 0:
     #print("Traffic Light State:", tls_state)
     #print(traci.simulation.getTime())
     traci.simulationStep()
+    step += 1
     
 traci.close()
