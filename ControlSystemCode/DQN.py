@@ -136,7 +136,7 @@ class DQN:
         state_action_values = self.eval_net(state_batch).gather(1, action_batch)
         with torch.no_grad():
             argmax_action = self.eval_net(next_state_batch).max(1)[1].view(self.batch_size, 1)
-            expected_state_action_values = reward_batch + self.gamma * self.target_net(next_state_batch).gather(1, argmax_action)  # Compute the expected Q values
+        expected_state_action_values = reward_batch + self.gamma * self.target_net(next_state_batch).gather(1, argmax_action)  # Compute the expected Q values
         
 
         # Compute Huber loss

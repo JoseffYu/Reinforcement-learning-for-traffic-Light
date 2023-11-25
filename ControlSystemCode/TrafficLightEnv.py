@@ -36,7 +36,7 @@ class TrafficLight:
                 if 'g' in phase.state:
                     self.all_green_phases.append(phase)
 
-        self.observation_space = spaces.Box(low=-1, high=1, shape=(24,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-1, high=1, shape=(12,), dtype=np.float32)
         self.action_space = spaces.Discrete(len(self.all_green_phases))
         
         self.lanes_id = [lane for sub_list_lanes in self.lanes_id for lane in sub_list_lanes]
@@ -48,8 +48,8 @@ class TrafficLight:
         self.conn.trafficlight.setRedYellowGreenState(tl_id, new_green_phase_state)
         self.green_phase = action
         
+        return action
         
-
 
     def computeReward(self, action):
 
@@ -62,12 +62,12 @@ class TrafficLight:
         self.dict_lane_veh = {}        
          
         for lane_id in self.lanes_id:
-            self.dict_lane_veh[lane_id] = self.conn.lane.getLastStepHaltingNumber(lane_id)
-        # merge wait_num by actions
+            self.dict_lane_veh[lane_id] = self.getObservation()
+        # merge wait_num by actions, position po each lines indicate a  action of traffic light
         dict_action_wait_num = [self.dict_lane_veh['E0_1'] + self.dict_lane_veh['E2_1'],
                                 self.dict_lane_veh['-E1_1'] + self.dict_lane_veh['E3_1'],
-                                self.dict_lane_veh['E0_2'] + self.dict_lane_veh['E2_1'],
-                                self.dict_lane_veh['-E1_2'] + self.dict_lane_veh['E3_2']]
+                                self.dict_lane_veh['-E1_2'] + self.dict_lane_veh['E3_2'],
+                                self.dict_lane_veh['E0_2'] + self.dict_lane_veh['E2_1']]
         best_action = np.argmax(dict_action_wait_num)
         if best_action == action:
             self.reward = 1
@@ -97,9 +97,13 @@ class TrafficLight:
 
 
     def getLanesDensity(self):
+        
+        lanes_density_with_id = {}
         vehicle_size_min_gap = 7.5
-        return [min(1, self.conn.lane.getLastStepVehicleNumber(lane_id) / (self.lanes_length[lane_id] / vehicle_size_min_gap))
-                for lane_id in self.lanes_id]
+        for lane in self.lanes_id:
+            lane_density = min(1, self.conn.lane.getLastStepVehicleNumber(lane) / (self.lanes_length[lane] / vehicle_size_min_gap))
+            lanes_density_with_id[lane] = lane_density
+        return lanes_density_with_id
 
 
     def getLanesQueue(self):
@@ -107,16 +111,19 @@ class TrafficLight:
 
         Obs: The queue is computed as the number of vehicles halting divided by the number of vehicles that could fit in the lane.
         """
-        lanes_queue = [
-            self.conn.lane.getLastStepHaltingNumber(lane) #total number of halting vehicles
-            / (self.lanes_length[lane] / max(self.conn.lane.getLastStepLength(lane),1)) # getLastStepLength Returns the mean vehicle length in m for the last time step on the given lane.
-            for lane in self.lanes_id
-        ]
-        return [min(1, queue) for queue in lanes_queue]
+
+        lanes_queue_with_id = {}
+        for lane in self.lanes_id:
+            lanes_queue = self.conn.lane.getLastStepHaltingNumber(lane) / (self.lanes_length[lane] / max(self.conn.lane.getLastStepLength(lane),1)) # getLastStepLength Returns the mean vehicle length in m for the last time step on the given lane.
+            lanes_queue_with_id[lane] = lanes_queue
+        return lanes_queue_with_id
 
 
     def getObservation(self):
         density = self.getLanesDensity()
         queue = self.getLanesQueue()
-        observation = np.array(density + queue, dtype=np.float32)
+        obs = []
+        for lane in self.lanes_id:
+            obs.append((density[lane]+queue[lane])/2)
+        observation = np.array(obs, dtype=np.float32)
         return observation

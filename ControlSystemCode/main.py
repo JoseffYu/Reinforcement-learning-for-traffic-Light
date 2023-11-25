@@ -18,7 +18,7 @@ def main():
     agent = DQN(mode="train",input_dim=input_dim,output_dim=output_dim,gamma=0.95,replay_size=20000,batch_size=32,eps_start=0.95,eps_end=0.05,eps_decay=30000,LR=1e-4)
     replay_buffer = ReplayBuffer(agent.replay_size)
 
-    for episode in range(10):
+    for episode in range(11):
         initial_state = env.reset()
         
         env.train_state = initial_state
@@ -37,18 +37,17 @@ def main():
             replay_buffer.push(state, next_state, reward, info['do_action'])
             agent.memory = replay_buffer
             agent.learn()
-            print(info)
+            #print(state)
         
         all_rewards.append(reward)
         if episode % 5 == 0:
-            print(f"reward:{reward}")
+            print(f"reward:{all_rewards}")
             
 
         env.close()
 
         print('i_episode:', episode)
         print('learn_steps:', agent.learn_step_counter)
-        print(all_rewards)
     plt.plot(all_rewards)
     plt.xlabel('Time Steps')
     plt.ylabel('Traffic Light State')
