@@ -25,16 +25,16 @@ class SumoEnv(gym.Env):
         ):
         super(SumoEnv, self).__init__()
         self.sumo_cfg_file = sumo_cfg_file
-        self.sumo_cmd = ["sumo", "-c", self.sumo_cfg_file]
+        self.sumo_cmd = ["sumo-gui", "-c", self.sumo_cfg_file]
         self.time = 0
         self.end_time = simulation_time
         self.train_state = None
         self.use_gui = use_gui
         self.sumo = None
-        self.sumoBinary = 'sumo'
+        self.sumoBinary = 'sumo-gui'
         if self.use_gui:
             self.sumoBinary = 'sumo-gui'
-        traci.start(["sumo-gui", "-b","0", "-e",str(simulation_time), "-c", sumo_cfg_file], numRetries=10)
+        self.start_sumo(simulation_time)
         
         conn = traci
         
@@ -44,9 +44,15 @@ class SumoEnv(gym.Env):
         self.close()
 
 
-    def reset(self):
+    def start_sumo(self, simulation_time):
+        # simulation_time = 100
+        traci.start(["sumo", "-b", "0", "-c", self.sumo_cfg_file], numRetries=10) #add -gui with sumo if visualization is needed
+        traci.simulationStep(simulation_time)
+
+    def reset(self): #def reset(self, simulation_time):
         # reset SUMO
-        traci.start(self.sumo_cmd)
+        traci.start(["sumo", "-b", "0", "-c", self.sumo_cfg_file], numRetries=10)
+        #traci.simulationStep(simulation_time) active it if visualisation is needed
         self.time = 0
         self.traffic_light.reward = 0
         # get initial observation
@@ -77,13 +83,14 @@ class SumoEnv(gym.Env):
         pass
 
 
-    def takeAction(self, action):
+    def takeAction(self, tl_id ,action):
         # Take action to control Traffic Light
-        return self.traffic_light.doAction(action)
+        return self.traffic_light.doAction(tl_id,action)
     
     
     def computeReward(self, do_action):
         ts_reward = self.traffic_light.computeReward(do_action)
+        ts_total_reward = self.traffic_light.total_reward
         return ts_reward
     
     

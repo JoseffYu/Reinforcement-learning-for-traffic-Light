@@ -47,10 +47,10 @@ def getObservation():
         
     density = getLanesDensity()
     queue = getLanesQueue()
-    obs = []
+    lanes_id_obs = {}
     for lane in lanes_list:
-        obs.append((density[lane]+queue[lane])/2)
-    observation = np.array(obs, dtype=np.float32)
+        lanes_id_obs[lane] = (density[lane]+queue[lane])/2
+    observation = lanes_id_obs
     return observation
     
 while step < 1000:
@@ -58,16 +58,12 @@ while step < 1000:
     #for lane_id in lanes_list:
             #dict_lane_veh[lane_id] = getObservation()
     
-    print(f"density{getLanesDensity()}")
-    print(f"queue{getLanesQueue()}")
     print(f"observations{getObservation()}")
     
     # Get TrafficLight status
     traffic_light_id = traci.trafficlight.getIDList()
     #print(f"traffic_light_id:{traffic_light_id}")
     traffic_lanes_id = traci.trafficlight.getControlledLanes(traffic_light_id[0])
-    print(traffic_lanes_id)
-    print(traci.trafficlight.getPhaseName(traffic_light_id[0]))
     #print(traci.trafficlight.Phase)
     #print(traci.trafficlight.getAllProgramLogics(traffic_light_id[0])[0].phases)
     all_green_phases = [phase for phase in traci.trafficlight.getAllProgramLogics(traffic_light_id[0])[0].phases if 'g' in phase.state]

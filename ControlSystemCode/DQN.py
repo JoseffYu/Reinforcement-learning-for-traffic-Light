@@ -58,6 +58,7 @@ class ReplayBuffer(object):
    
 class DQN:
     def __init__(self,
+                 env,
                  mode,
                  input_dim,
                  output_dim,
@@ -78,6 +79,7 @@ class DQN:
         self.lr = LR
         self.episode_durations = []
         self.memory = None
+        self.env = env
 
         self.eval_net = network(input_dim, output_dim).to(device)
         self.target_net = network(input_dim, output_dim).to(device)
@@ -91,36 +93,30 @@ class DQN:
 
 
     def selectAction(self, state, steps_done, invalid_action):
-        original_state = state.copy()
+        #original_state = state
         state = torch.from_numpy(state)
         if self.mode == 'train':
             sample = random.random()
-            eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(-1. * steps_done / self.eps_decay)
+            #eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(-1. * steps_done / self.eps_decay)
             self.learn_step_counter += 1
-            if sample > eps_threshold:
-                with torch.no_grad():
-                    self.eval_net(state)
+            if sample > 0.95:
+                with torch.no_grad():                    
                     _, sorted_indices = torch.sort(self.eval_net(state), descending=True)
                     if invalid_action:
                         return sorted_indices[1]
                     else:
                         return sorted_indices[0]
             else:
-                decrease_state = [(original_state[0] + original_state[4]) / 2,
-                                  (original_state[1] + original_state[5]) / 2,
-                                  (original_state[2] + original_state[6]) / 2,
-                                  (original_state[3] + original_state[7]) / 2]
-                congest_phase = [i for i, s in enumerate(decrease_state) if abs(s-1) < 1e-2]
-                if len(congest_phase) > 0 and invalid_action is False:
-                    return random.choice(congest_phase)
-                else:
-                    return random.randrange(self.n_actions)
-        else:
-            _, sorted_indices = torch.sort(self.eval_net(state), descending=True)
-            if invalid_action:
-                return sorted_indices[1]
-            else:
-                return sorted_indices[0]
+                #decrease_state = [
+                 #   (original_state[4] + original_state[10]) / 2, #(E0_1,E2_1)
+                  #  (original_state[1] + original_state[7]) / 2, #(-E1_1,E3_1)
+                   # (original_state[2] + original_state[8]) / 2, #(-E1_2,E3_2)
+                   # (original_state[5] + original_state[11]) / 2] #(E0_2,E2_2)
+
+                #if invalid_action is False:
+                    #return np.argmax(decrease_state)
+                return self.env.action_space().sample()
+
 
 
     def learn(self):
@@ -136,8 +132,7 @@ class DQN:
         state_action_values = self.eval_net(state_batch).gather(1, action_batch)
         with torch.no_grad():
             argmax_action = self.eval_net(next_state_batch).max(1)[1].view(self.batch_size, 1)
-        expected_state_action_values = reward_batch + self.gamma * self.target_net(next_state_batch).gather(1, argmax_action)  # Compute the expected Q values
-        
+            expected_state_action_values = reward_batch + self.gamma * self.target_net(next_state_batch).gather(1, argmax_action)  # Compute the expected Q values
 
         # Compute Huber loss
         loss = self.loss_func(state_action_values, expected_state_action_values)
@@ -149,6 +144,3 @@ class DQN:
             param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
         self.learn_step_counter += 1
-        # In-place gradient clipping
-        torch.nn.utils.clip_grad_value_(self.eval_net.parameters(), 100)
-        self.optimizer.step()

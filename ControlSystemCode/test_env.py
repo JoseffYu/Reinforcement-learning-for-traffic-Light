@@ -11,7 +11,7 @@ sumo_cfg = "/Users/yuyanlin/Desktop/AdaptiveTrafficLight/Simulator/RunSimulator.
 def test(env, wrap_action_in_list=False):
     print(env)
 
-    state = env.reset()
+    state = env.reset(200)
     over = False
     step = 0
 
@@ -26,7 +26,7 @@ def test(env, wrap_action_in_list=False):
         state = env.observation_space()
 
         if step % 20 == 0:
-            print(f"next state: {next_state}")
+            print(f"next state: {state}")
             #print(torch.from_numpy(state))
             #print(step, state, action, reward,info)
 
@@ -35,4 +35,4 @@ def test(env, wrap_action_in_list=False):
 
         step += 1
 
-print(test(SumoEnv(sumo_cfg, 99999)))
+print(test(SumoEnv(sumo_cfg, 200)))
