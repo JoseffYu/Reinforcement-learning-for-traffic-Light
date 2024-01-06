@@ -16,12 +16,6 @@ device ="cpu"
 Transition = namedtuple('Transition',
                         ('state', 'next_state', 'reward', 'action'))
 
-is_ipython = 'inline' in matplotlib.get_backend()
-if is_ipython:
-    from IPython import display
-
-plt.ion()
-
 
 class network(nn.Module):
 
@@ -84,6 +78,8 @@ class DQN:
         self.eval_net = network(input_dim, output_dim).to(device)
         self.target_net = network(input_dim, output_dim).to(device)
         self.replay_size = replay_size
+        self.losses = []
+        self.expected_values = []
 
         self.target_net.load_state_dict(self.eval_net.state_dict())
         self.optimizer = torch.optim.Adam(self.eval_net.parameters(), lr=LR, amsgrad=True)
@@ -97,9 +93,9 @@ class DQN:
         state = torch.from_numpy(state)
         if self.mode == 'train':
             sample = random.random()
-            #eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(-1. * steps_done / self.eps_decay)
+            eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(-1. * steps_done / self.eps_decay)
             self.learn_step_counter += 1
-            if sample > 0.95:
+            if sample < eps_threshold:
                 with torch.no_grad():                    
                     _, sorted_indices = torch.sort(self.eval_net(state), descending=True)
                     if invalid_action:
@@ -107,14 +103,6 @@ class DQN:
                     else:
                         return sorted_indices[0]
             else:
-                #decrease_state = [
-                 #   (original_state[4] + original_state[10]) / 2, #(E0_1,E2_1)
-                  #  (original_state[1] + original_state[7]) / 2, #(-E1_1,E3_1)
-                   # (original_state[2] + original_state[8]) / 2, #(-E1_2,E3_2)
-                   # (original_state[5] + original_state[11]) / 2] #(E0_2,E2_2)
-
-                #if invalid_action is False:
-                    #return np.argmax(decrease_state)
                 return self.env.action_space().sample()
 
 
@@ -130,12 +118,16 @@ class DQN:
         reward_batch = torch.cat([torch.tensor(batch.reward)]).view(self.batch_size, 1)
         next_state_batch = torch.cat([torch.tensor(batch.next_state)])
         state_action_values = self.eval_net(state_batch).gather(1, action_batch)
+        
+        
         with torch.no_grad():
-            argmax_action = self.eval_net(next_state_batch).max(1)[1].view(self.batch_size, 1)
-            expected_state_action_values = reward_batch + self.gamma * self.target_net(next_state_batch).gather(1, argmax_action)  # Compute the expected Q values
+            argmax_action = self.target_net(next_state_batch).max(1)[1].view(self.batch_size, 1)
+        expected_state_action_values = reward_batch + self.gamma * self.target_net(next_state_batch).gather(1, argmax_action)  # Compute the expected Q values
 
         # Compute Huber loss
         loss = self.loss_func(state_action_values, expected_state_action_values)
+        self.losses.append(loss.item())
+        self.expected_values.extend(expected_state_action_values.detach().numpy())
 
         # Optimize the model
         self.optimizer.zero_grad()
@@ -144,3 +136,6 @@ class DQN:
             param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
         self.learn_step_counter += 1
+        
+        if self.learn_step_counter%10==0:
+            self.target_net.load_state_dict(self.eval_net.state_dict())

@@ -59,7 +59,6 @@ class Critic(torch.nn.Module):
         optimizerC = torch.optim.Adam(critic.parameters())
         for iter in range(n_iters):
             state = env.reset()[0]
-            print(env.reset())
             log_probs = []
             values = []
             rewards = []
@@ -111,7 +110,8 @@ class Critic(torch.nn.Module):
 
 actor = Actor(state_size, action_size).to(device)
 critic = Critic(state_size, action_size).to(device)
-critic.run_episode(actor, n_iters=1000)
+critic.run_episode(actor, n_iters=500)
+print("-----------------------")
 print(state_size,action_size)
 print(state_ex)
 env.close()
