@@ -28,7 +28,6 @@ class SumoEnv(gym.Env):
         self.sumo_cmd = ["sumo-gui", "-c", self.sumo_cfg_file]
         self.time = 0
         self.end_time = simulation_time
-        self.train_state = None
         self.use_gui = use_gui
         self.sumo = None
         self.sumoBinary = 'sumo-gui'
@@ -71,12 +70,13 @@ class SumoEnv(gym.Env):
 
         traci.simulationStep()
         # compute_state must be front of compute_reward
+        
         next_state = self.computeNextState()
         reward = self.computeReward(do_action)
         done = self.computeDone()
         info = {'do_action': do_action}
         self.time += 1
-        return next_state, reward, done, info
+        return self.computeState(),next_state, reward, done, info
 
     
     def render(self, mode='human'):

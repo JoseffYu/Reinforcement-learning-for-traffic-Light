@@ -11,7 +11,7 @@ from collections import namedtuple, deque
 device ="cpu"
 
 Transition = namedtuple('Transition',
-                        ('state', 'action', 'next_state', 'reward'))
+                        ('state', 'action', 'next_state', 'reward','done'))
 
 is_ipython = 'inline' in matplotlib.get_backend()
 if is_ipython:
@@ -82,6 +82,7 @@ class DQN:
         self.target_net = network(input_dim, output_dim).to(device)
         self.target_net_state_dict = self.target_net.state_dict()
         self.policy_net_state_dict = self.policy_net.state_dict()
+        self.target_net.load_state_dict(self.policy_net.state_dict())
         self.replay_size = replay_size
 
         self.optimizer = torch.optim.Adam(self.policy_net.parameters(), lr=self.lr, amsgrad=True)
@@ -92,10 +93,9 @@ class DQN:
         self.learn_step_counter = 0  # for target updating
 
 
-    def selectAction(self, state, steps_done):
-        #original_state = state
+    def selectAction(self, state):
         sample = random.random()
-        eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(-1. * steps_done / self.eps_decay)
+        eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(-1. * self.learn_step_counter/ self.eps_decay)
         self.learn_step_counter += 1
         if sample > eps_threshold:
             with torch.no_grad():
@@ -136,22 +136,27 @@ class DQN:
             return
 
         transitions = self.memory.sample(self.batch_size)
-        batch = Transition(*zip(*transitions))
         
+        batch = Transition(*zip(*transitions))
         state_batch = torch.cat(batch.state)
         action_batch = torch.cat(batch.action)
         reward_batch = torch.cat(batch.reward)
         
-        next_state_batch = torch.cat(batch.next_state)
-        state_action_values = self.policy_net(state_batch).gather(1, action_batch)
+        #For cartpole only
+        non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
+                                        batch.next_state)), device=device, dtype=torch.bool)
+        next_state_batch = torch.cat([s for s in batch.next_state
+                                               if s is not None])
+        
+        state_action_values = self.policy_net(state_batch).gather(1, action_batch).view(1,self.batch_size)
+        next_state_values = torch.zeros(self.batch_size, device=device)
         
         with torch.no_grad():
-            argmax_action = self.target_net(next_state_batch).max(1)[1].view(1,self.batch_size)
-        expected_state_action_values = reward_batch + self.gamma * self.target_net(next_state_batch).gather(1, argmax_action)  # Compute the expected Q values
-
+            next_state_values[non_final_mask] = self.target_net(next_state_batch).max(1).values
+        expected_state_action_values = (next_state_values * self.gamma) + reward_batch
+        
         # Compute Huber loss
         loss = self.loss_func(state_action_values, expected_state_action_values)
-        
         #store expected values and loss of each step
         self.losses.append(loss.item())
         self.expected_values.extend(expected_state_action_values.detach().numpy())

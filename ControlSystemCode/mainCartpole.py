@@ -1,14 +1,14 @@
 
 import gym
 import matplotlib
-from CartpoleMethod1 import DQN, ReplayBuffer
+from CartpoleMethod2 import DQN, ReplayBuffer
 import matplotlib.pyplot as plt
 import torch
 from itertools import count
 
 device = "cpu"
 sumo_cfg = "/Users/yuyanlin/Desktop/AdaptiveTrafficLight/Simulator/RunSimulator.sumocfg"
-
+        
 all_total_reward = []
 
 plt.ion()
@@ -20,7 +20,7 @@ def main():
     state_size = env.observation_space.shape[0]
     action_size = env.action_space.n
     
-    agent = DQN(env = env,mode="train",input_dim=state_size,output_dim=action_size,gamma=0.95,replay_size=20000,batch_size=128,eps_start=0.95,eps_end=0.05,eps_decay=1000,TAU=0.005,LR=1e-4)
+    agent = DQN(env = env,mode="train",input_dim=state_size,output_dim=action_size,gamma=0.99,replay_size=20000,batch_size=128,eps_start=0.9,eps_end=0.01,eps_decay=1000,TAU=0.005,LR=1e-4)
     replay_buffer = ReplayBuffer(agent.replay_size)
     agent.memory = replay_buffer
     
@@ -31,29 +31,33 @@ def main():
 
         for t in count():
             env.render()
-            action = agent.selectAction(state,agent.learn_step_counter)
+            action = agent.selectAction(state)
             observation, reward, done, _ = env.step(action.item())[:4]
             total_reward += reward
-            reward = torch.tensor([reward], device=device)
-
+            reward = torch.tensor([reward], device=device) 
+            #if done: 
+            #    next_state = None
+            #else:
+            #    next_state = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0)
             next_state = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0)
-            agent.memory.push(state, action, next_state, reward)
+            done = torch.tensor(done, dtype=torch.float32, device=device).unsqueeze(0)
+
+
+            agent.memory.push(state, action, next_state, reward, done)
             state = next_state
             
             agent.learn()
             
-            agent.target_net_state_dict = agent.target_net.state_dict()
-            agent.policy_net_state_dict = agent.policy_net.state_dict()
             for param in agent.policy_net_state_dict:
-                agent.target_net_state_dict[param] = agent.policy_net_state_dict[param]*agent.TAU + agent.policy_net_state_dict[param]*(1-agent.TAU)
-
+                agent.target_net_state_dict[param] = agent.policy_net_state_dict[param]*agent.TAU + agent.target_net_state_dict[param]*(1-agent.TAU)
             agent.target_net.load_state_dict(agent.target_net_state_dict)
             
             if done:
                 agent.episode_durations.append(total_reward)
                 agent.plot_durations()
                 break
-        print('i_episode:', episode)
+        
+        print('i_episode:', episode)    
         print('learn_steps:', agent.learn_step_counter)
     
     all_total_reward = agent.episode_durations
@@ -80,7 +84,7 @@ def main():
     plt.title("Expected Values Over Time")
     plt.xlabel("learn_steps")
     plt.ylabel("Expected Value")
-    plt.savefig('/Users/yuyanlin/Desktop/AdaptiveTrafficLight/Cartpole_method2_reward_epi.png')
+    plt.savefig('/Users/yuyanlin/Desktop/AdaptiveTrafficLight/Cartpole_method2_not_done.png')
 
 plt.show()
 

@@ -108,7 +108,8 @@ def select_action(state):
 
 
 episode_durations = []
-
+losses = []
+expected_values = []
 
 def plot_durations(show_result=False):
     plt.figure(1)
@@ -159,7 +160,7 @@ def optimize_model():
     # columns of actions taken. These are the actions which would've been taken
     # for each batch state according to policy_net
     state_action_values = policy_net(state_batch).gather(1, action_batch)
-    
+    #next_state_batch = torch.cat(batch.next_state)
     # Compute V(s_{t+1}) for all next states.
     # Expected values of actions for non_final_next_states are computed based
     # on the "older" target_net; selecting their best reward with max(1).values
@@ -171,13 +172,16 @@ def optimize_model():
     # Compute the expected Q values
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
-        #argmax_action = target_net(next_state_batch).max(1)[1].view(1,BATCH_SIZE)
+       #argmax_action = target_net(next_state_batch).max(1).indices.view(1,BATCH_SIZE)
     #expected_state_action_values = reward_batch + GAMMA * target_net(next_state_batch).gather(1, argmax_action)  # Compute the expected Q values
 
     # Compute Huber loss
     criterion = nn.SmoothL1Loss()
     loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
 
+    expected_values.extend(expected_state_action_values.detach().numpy())
+    losses.append(loss.item())
+    
     # Optimize the model
     optimizer.zero_grad()
     loss.backward()
@@ -189,7 +193,7 @@ def optimize_model():
 if torch.cuda.is_available():
     num_episodes = 500
 else:
-    num_episodes = 500
+    num_episodes = 300
 
 for i_episode in range(num_episodes):
     # Initialize the environment and get it's state
@@ -199,6 +203,7 @@ for i_episode in range(num_episodes):
 
         env.render()
         action = select_action(state)
+        #observation, reward, done, _ = env.step(action.item())[:4]
         observation, reward, terminated, truncated, _ = env.step(action.item())
         reward = torch.tensor([reward], device=device)
         done = terminated or truncated
@@ -207,6 +212,7 @@ for i_episode in range(num_episodes):
             next_state = None
         else:
             next_state = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0)
+        #next_state = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0)
 
         # Store the transition in memory
         memory.push(state, action, next_state, reward)
@@ -228,9 +234,35 @@ for i_episode in range(num_episodes):
         if done:
             episode_durations.append(t + 1)
             plot_durations()
+            print(i_episode)
             break
 
 print('Complete')
 #plot_durations(show_result=True)
 #plt.show()
 #plt.ioff()
+plt.figure(figsize=(12, 5))
+plt.subplot(1, 3, 1)
+plt.plot(torch.tensor(episode_durations, dtype=torch.float))
+plt.title('Returns for Cartpole')
+plt.xlabel('Episodes')
+plt.ylabel('returns')
+
+plt.subplot(1, 3, 2)
+plt.plot(losses)
+plt.title("Training Loss Over Time")
+plt.xlabel("Learn_steps")
+plt.ylabel("Loss")
+
+plt.subplot(1, 3, 3)
+plt.plot(expected_values)
+plt.title("Expected Values Over Time")
+plt.xlabel("learn_steps")
+plt.ylabel("Expected Value")
+plt.savefig('/Users/yuyanlin/Desktop/AdaptiveTrafficLight/CartpoleDQN_example.png')
+
+plt.show()
+
+print("complete")
+
+    
