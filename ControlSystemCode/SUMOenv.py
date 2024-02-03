@@ -45,7 +45,7 @@ class SumoEnv(gym.Env):
 
     def start_sumo(self, simulation_time):
         # simulation_time = 100
-        traci.start(["sumo", "-b", "0", "-c", self.sumo_cfg_file], numRetries=10) #add -gui with sumo if visualization is needed
+        traci.start(["sumo-gui", "-b", "0", "-c", self.sumo_cfg_file], numRetries=10) #add -gui with sumo if visualization is needed
         traci.simulationStep(simulation_time)
 
     def reset(self): #def reset(self, simulation_time):

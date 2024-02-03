@@ -1,21 +1,20 @@
 import traci
-import sumo
 import numpy as np
 
 # Connect to SUMO
 sumo_cfg = "/Users/yuyanlin/Desktop/AdaptiveTrafficLight/Simulator/RunSimulator.sumocfg"
-traci.start(["sumo-gui", "-b","0", "-e","999999", "-c", sumo_cfg], numRetries=10,verbose = True)
+traci.start(["sumo-gui", "-b","0", "-e","999999", "-c", sumo_cfg], numRetries=20,verbose = True)
 
 # Get TrafficLight status
 traffic_light_id = traci.trafficlight.getIDList()
 lanes = traci.lane.getIDList()
+traffic_junc_list = traci.junction.getIDList()
 
 lanes_list = ['-E1_0', '-E1_1', '-E1_2', 'E2_0', 'E2_1', 'E2_2', 'E3_0', 'E3_1', 'E3_2', 'E0_0', 'E0_1', 'E0_2']
 
 print(f"lanes:{len(lanes)}")
 #print(f"traffic light:{traffic_light_id}")
 step = 0
-
 lanes_length = {lane_id: traci.lane.getLength(lane_id) for lane_id in lanes_list}
 
 def getLanesDensity():
@@ -52,13 +51,14 @@ def getObservation():
         lanes_id_obs[lane] = (density[lane]+queue[lane])/2
     observation = lanes_id_obs
     return observation
+
     
 while step < 1000:
     dict_lane_veh = {}
     #for lane_id in lanes_list:
             #dict_lane_veh[lane_id] = getObservation()
     
-    print(f"observations{getObservation()}")
+    #print(f"observations{getObservation()}")
     
     # Get TrafficLight status
     traffic_light_id = traci.trafficlight.getIDList()
@@ -71,8 +71,10 @@ while step < 1000:
     #if traci.simulation.getTime() == 10:
         #traci.trafficlight.setPhase(traffic_light_id[0],5) #remember here is choosing phase from [0,5] but not name of phase
     #tls_state = traci.trafficlight.getRedYellowGreenState(traffic_light_id)
-    
-    # Print TrafficLight Status
+    if step % 100 == 0:
+        time = traci.simulation.getCurrentTime()
+        print("current time: ",time)
+        print("--------------------------")
     #print("Traffic Light State:", tls_state)
     #print(traci.simulation.getTime())
     traci.simulationStep()
