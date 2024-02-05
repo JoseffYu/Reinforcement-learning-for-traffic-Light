@@ -51,7 +51,7 @@ class SumoEnv(gym.Env):
     def reset(self): #def reset(self, simulation_time):
         # reset SUMO
         traci.start(["sumo", "-b", "0", "-c", self.sumo_cfg_file], numRetries=10)
-        #traci.simulationStep(simulation_time) active it if visualisation is needed
+        #traci.simulationStep(simulation_time) #active it if visualisation is needed
         self.time = 0
         self.traffic_light.reward = 0
         # get initial observation
