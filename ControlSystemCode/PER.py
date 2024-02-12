@@ -188,7 +188,8 @@ class DQN:
         state = torch.from_numpy(state)
         if self.mode == 'train':
             sample = random.random()
-            eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(-1. * steps_done / self.eps_decay)
+            #eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(-1. * steps_done / self.eps_decay)
+            eps_threshold = 0.95
             self.learn_step_counter += 1
             if sample < eps_threshold:
                 with torch.no_grad():                    
