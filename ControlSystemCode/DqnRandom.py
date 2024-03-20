@@ -147,12 +147,12 @@ class DQN:
         batch = Transition(*zip(*transitions))
         
         state_batch = torch.cat([torch.tensor(batch.state)])
-        action_batch = torch.cat([torch.tensor(batch.action)]).view(self.batch_size, 1)
-        reward_batch = torch.cat([torch.tensor(batch.reward)]).view(self.batch_size, 1)
+        action_batch = torch.cat([torch.tensor(batch.action)]).view(self.batch_size,1)
+        reward_batch = torch.cat([torch.tensor(batch.reward)]).view(self.batch_size,1)
         next_state_batch = torch.cat([torch.tensor(batch.next_state)])
         
-        state_action_values = self.policy_net(state_batch).gather(1,action_batch).view(1,self.batch_size)
-        target_action_values = self.target_net(next_state_batch).max(1)[0].view(1,self.batch_size)
+        state_action_values = self.policy_net(state_batch).gather(1,action_batch).view(self.batch_size,1)
+        target_action_values = self.target_net(next_state_batch).max(1)[0].view(self.batch_size,1)
         expected_state_action_values = reward_batch + self.gamma * target_action_values  # Compute the expected Q values
 
         # Compute Huber loss

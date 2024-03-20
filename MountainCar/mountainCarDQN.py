@@ -166,7 +166,6 @@ for episode in range(300):
     for t in count():
         env.render()
         action = selectAction(state)
-        print("env step",env.step(action.item()))
         observation, reward, done, _ = env.step(action.item())[:4]
         reward = torch.tensor([reward], device=device)
         next_state = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0)

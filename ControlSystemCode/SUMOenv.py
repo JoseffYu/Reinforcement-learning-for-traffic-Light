@@ -45,12 +45,12 @@ class SumoEnv(gym.Env):
 
     def start_sumo(self, simulation_time):
         # simulation_time = 100
-        traci.start(["sumo-gui", "-b", "0", "-c", self.sumo_cfg_file], numRetries=10) #add -gui with sumo if visualization is needed
+        traci.start(["sumo", "-b", "0", "-c", self.sumo_cfg_file], numRetries=10) #add -gui with sumo if visualization is needed
         traci.simulationStep(simulation_time)
 
     def reset(self): #def reset(self, simulation_time):
         # reset SUMO
-        traci.start(["sumo", "-b", "0", "-c", self.sumo_cfg_file], numRetries=10)
+        traci.start(["sumo", "-b", "0", "-c", self.sumo_cfg_file], numRetries=10) #add -gui with sumo if visualization is needed
         #traci.simulationStep(simulation_time) #active it if visualisation is needed
         self.time = 0
         self.traffic_light.reward = 0
@@ -63,10 +63,10 @@ class SumoEnv(gym.Env):
         reward = None
         done = False
         info = {'do_action': None}
-        
-        do_action = self.traffic_light.doAction(tl_id, action)
-        if do_action is None:
-            return next_state, reward, done, info
+        for id in tl_id:
+            do_action = self.traffic_light.doAction(id, action)
+            if do_action is None:
+                return next_state, reward, done, info
 
         traci.simulationStep()
         # compute_state must be front of compute_reward

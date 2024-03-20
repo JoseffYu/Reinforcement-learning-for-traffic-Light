@@ -42,17 +42,13 @@ class TrafficLight:
         
         self.lanes_id = [lane for sub_list_lanes in self.lanes_id for lane in sub_list_lanes]
 
-
+    #action is the order of phase
     def doAction(self, tl_id, action):
-        
         new_green_phase_state = self.all_green_phases[action].state
         self.conn.trafficlight.setRedYellowGreenState(tl_id, new_green_phase_state)
         self.green_phase = action
-        #print("action ",action)
-        
         return action
-        
-
+            
     def computeReward(self, action):
 
         update_reward = True
@@ -62,19 +58,16 @@ class TrafficLight:
     
     def chooseMinWaitTime(self,action, update_reward):
         self.dict_lane_veh = {}
-        #print(self.getObservation())
         for i,lane_id in enumerate(self.lanes_id):
             self.dict_lane_veh[lane_id] = self.getObservation()[i]
         # merge wait_num by actions, position po each lines indicate a  action of traffic light
-        #print("dict length:",self.dict_lane_veh)
-        dict_action_wait_num = [self.dict_lane_veh['E0_1'] + self.dict_lane_veh['E2_1'],
-                                self.dict_lane_veh['-E1_1'] + self.dict_lane_veh['E3_1'],
-                                self.dict_lane_veh['-E1_2'] + self.dict_lane_veh['E3_2'],
-                                self.dict_lane_veh['E0_2'] + self.dict_lane_veh['E2_2']]
-        #print("find argmax",dict_action_wait_num)
+        dict_action_wait_num = [self.dict_lane_veh['-E1_1'] + self.dict_lane_veh['-W1_1'],
+                                self.dict_lane_veh['-N1_2'] + self.dict_lane_veh['-S1_2'],
+                                self.dict_lane_veh['-N1_1'] + self.dict_lane_veh['-S1_1'],
+                                self.dict_lane_veh['-E1_2'] + self.dict_lane_veh['-W1_2']
+                                ]
         best_action = np.argmax(dict_action_wait_num)
 
-        #action = action.item()
         if action == best_action:
             self.reward = 1
             self.total_reward += self.reward

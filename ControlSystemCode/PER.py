@@ -236,8 +236,8 @@ class DQN:
         batch = Transition(*zip(*transitions))
         
         state_batch = torch.cat([torch.tensor(batch.state)])
-        action_batch = torch.cat([torch.tensor(batch.action)]).view(self.batch_size, 1)
-        reward_batch = torch.cat([torch.tensor(batch.reward)]).view(self.batch_size, 1)
+        action_batch = torch.cat([torch.tensor(batch.action)]).view(1,self.batch_size)
+        reward_batch = torch.cat([torch.tensor(batch.reward)]).view(1,self.batch_size)
         next_state_batch = torch.cat([torch.tensor(batch.next_state)])
         
         state_action_values = self.policy_net(state_batch).gather(1,action_batch).view(1,self.batch_size)
