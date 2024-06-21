@@ -5,7 +5,11 @@ import numpy as nps
 import os
 import sys
 import random
-from TrafficLightEnv import TrafficLight
+
+'2 different environments'
+#from TLEnv1 import TrafficLight
+from TLEnv2 import TrafficLight
+
 if 'SUMO_HOME' in os.environ:
     tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
     sys.path.append(tools)
@@ -58,13 +62,17 @@ class SumoEnv(gym.Env):
         return self.observation_space()
 
 
+    def only_step(self):
+        traci.simulationStep()
+        return True
+    
     def step(self, tl_id, action):
         next_state = None
         reward = None
         done = False
         info = {'do_action': None}
         for id in tl_id:
-            do_action = self.traffic_light.doAction(id, action)
+            do_action = self.takeAction(id, action)
             if do_action is None:
                 return next_state, reward, done, info
 
@@ -74,9 +82,9 @@ class SumoEnv(gym.Env):
         next_state = self.computeNextState()
         reward = self.computeReward(do_action)
         done = self.computeDone()
-        info = {'do_action': do_action}
+        action = {'do_action': do_action}
         self.time += 1
-        return self.computeState(),next_state, reward, done, info
+        return self.computeState(),next_state, reward, done, action
 
     
     def render(self, mode='human'):
@@ -90,7 +98,6 @@ class SumoEnv(gym.Env):
     
     def computeReward(self, do_action):
         ts_reward = self.traffic_light.computeReward(do_action)
-        ts_total_reward = self.traffic_light.total_reward
         return ts_reward
     
     

@@ -90,7 +90,7 @@ class DQN:
 
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.optimizer = torch.optim.Adam(self.policy_net.parameters(), lr=LR, amsgrad=True)
-        self.loss_func = nn.MSELoss()
+        self.loss_func = nn.HuberLoss()
         
         self.learn_step_counter = 0  # for target updating
 
@@ -111,32 +111,6 @@ class DQN:
                         return sorted_indices[0]
             else:
                 return self.env.action_space().sample()
-            
-
-    def plot_durations(self,show_result=False):
-        plt.figure(1)
-        durations_t = torch.tensor(self.episode_durations, dtype=torch.float)
-        if show_result:
-            plt.title('Result')
-        else:
-            plt.clf()
-            plt.title('Training...')
-        plt.xlabel('Episode')
-        plt.ylabel('Duration')
-        plt.plot(durations_t.numpy())
-        # Take 100 episode averages and plot them too
-        if len(durations_t) >= 100:
-            means = durations_t.unfold(0, 100, 1).mean(1).view(-1)
-            means = torch.cat((torch.zeros(99), means))
-            plt.plot(means.numpy())
-
-        plt.pause(0.001)  # pause a bit so that plots are updated
-        if is_ipython:
-            if not show_result:
-                display.display(plt.gcf())
-                display.clear_output(wait=True)
-            else:
-                display.display(plt.gcf())
 
 
     def learn(self):
@@ -152,7 +126,7 @@ class DQN:
         next_state_batch = torch.cat([torch.tensor(batch.next_state)])
         
         state_action_values = self.policy_net(state_batch).gather(1,action_batch).view(1,self.batch_size)
-        target_action_values = self.target_net(next_state_batch).max(1)[0].view(1,self.batch_size)
+        target_action_values = self.target_net(next_state_batch).max(1)[0].view(1,self.batch_size) # Value of target net
         expected_state_action_values = reward_batch + self.gamma * target_action_values  # Compute the expected Q values
 
         # Compute Huber loss
